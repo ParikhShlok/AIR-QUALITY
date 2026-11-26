@@ -1,8 +1,9 @@
 from typing import Any
+import math
 
 def recommendations(air: dict[str, Any], profile: dict[str, Any]) -> list[dict[str, Any]]:
     aqi = air.get("aqi")
-    if not isinstance(aqi, (int, float)):
+    if isinstance(aqi, bool) or not isinstance(aqi, (int, float)) or not math.isfinite(aqi) or not 0 <= aqi <= 500:
         return [{"title":"Use a cautious routine today","action":"Check an official local air quality source before planning prolonged outdoor exercise. Keep indoor sources low and ventilate when conditions are known to be favorable.","reason":"Current outdoor measurements are unavailable, so conditions cannot be assessed reliably.","benefit":"Avoids treating missing information as clean air.","priority":1,"category":"Today"}]
     people = any(profile.get(k) for k in ("children", "elderly", "sensitive"))
     if aqi > 200:

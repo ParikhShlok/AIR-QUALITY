@@ -7,4 +7,5 @@ pytest-cache-files-*/
 venv/
 .env
 *.py[cod]
+*.tsbuildinfo
 .DS_Store

@@ -102,13 +102,16 @@ Never put a provider secret in a `VITE_` variable. No credentials are required f
 
 ## Tests
 
-Run backend tests from `backend/`:
+Run backend tests from `backend/` and frontend domain tests from `frontend/`:
 
 ```powershell
+cd backend
 pytest
+cd ../frontend
+npm test
 ```
 
-Tests cover missing and valid environmental payloads, forecast parsing, household-sensitive recommendations, severe conditions, no-data fallback, and structured assistant responses.
+Tests cover missing, malformed and valid environmental payloads, forecast parsing, household-sensitive recommendations, severe conditions, no-data fallback, structured assistant responses, US AQI category boundaries, and transport impact calculations.
 
 ## Privacy, safety and limitations
 

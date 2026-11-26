@@ -10,6 +10,10 @@ def test_parse_missing_measurements_stays_missing():
     got = parse_payload({"current":{"time":"2026-11-26T09:00"}}, {}, "Delhi")
     assert got["source"] == "live" and got["aqi"] is None and got["pm25"] is None and got["forecast"] == []
 
+def test_parser_rejects_out_of_range_aqi_and_negative_particles():
+    got = parse_payload({"current":{"time":"2026-11-26T09:00","us_aqi":900,"pm2_5":-2,"pm10":12}}, {}, "Delhi")
+    assert got["aqi"] is None and got["pm25"] is None and got["pm10"] == 12
+
 def test_parse_marks_us_aqi_and_future_forecast():
     got = parse_payload({"current":{"time":"2026-11-26T09:00","us_aqi":155,"pm2_5":65.3},"hourly":{"time":["2026-11-26T09:00","2026-11-26T10:00"],"us_aqi":[155,120]}}, {"current":{"temperature_2m":22}}, "Delhi")
     assert got["aqi"] == 155 and got["pm25"] == 65.3 and got["temperature"] == 22
@@ -26,6 +30,9 @@ def test_poor_aqi_mentions_household_context():
 def test_missing_data_does_not_claim_clean_air():
     result = recommendations({"aqi":None}, {})[0]
     assert "unavailable" in result["reason"] and "cautious" in result["title"]
+
+def test_invalid_aqi_does_not_fall_through_as_clean():
+    assert "unavailable" in recommendations({"aqi":501}, {})[0]["reason"]
 
 def test_assistant_is_explicitly_rule_based_and_structured():
     result = answer("Can we cycle?", {"aqi":240}, {"children":True})

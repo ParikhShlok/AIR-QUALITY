@@ -20,6 +20,14 @@ def _finite(value: Any) -> float | None:
 def _at(values: Any, index: int = 0) -> float | None:
     return _finite(values[index]) if isinstance(values, list) and len(values) > index else None
 
+def _nonnegative(value: Any) -> float | None:
+    number = _finite(value)
+    return number if number is not None and number >= 0 else None
+
+def _valid_aqi(value: Any) -> float | None:
+    number = _finite(value)
+    return number if number is not None and 0 <= number <= 500 else None
+
 def parse_payload(air: dict[str, Any], weather: dict[str, Any], city: str) -> dict[str, Any]:
     current = air.get("current", {}) if isinstance(air, dict) else {}
     hourly = air.get("hourly", {}) if isinstance(air, dict) else {}
@@ -27,15 +35,16 @@ def parse_payload(air: dict[str, Any], weather: dict[str, Any], city: str) -> di
     times, aqi_series = hourly.get("time", []), hourly.get("us_aqi", [])
     forecast, now = [], str(current.get("time", ""))
     for t, value in zip(times, aqi_series):
-        if isinstance(t, str) and t > now and _finite(value) is not None:
-            forecast.append({"time": t[11:16], "value": _finite(value)})
+        forecast_value = _valid_aqi(value)
+        if isinstance(t, str) and t > now and forecast_value is not None:
+            forecast.append({"time": t[11:16], "value": forecast_value})
             if len(forecast) >= 24: break
-    aqi = _finite(current.get("us_aqi"))
+    aqi = _valid_aqi(current.get("us_aqi"))
     if aqi is None:
         idx = times.index(now) if now in times else 0
-        aqi = _at(aqi_series, idx)
+        aqi = _valid_aqi(_at(aqi_series, idx))
     return {"source":"live", "city":city, "aqi":aqi,
-      "pm25":_finite(current.get("pm2_5")), "pm10":_finite(current.get("pm10")),
+      "pm25":_nonnegative(current.get("pm2_5")), "pm10":_nonnegative(current.get("pm10")),
       "temperature":_finite(weather_current.get("temperature_2m")),
       "humidity":_finite(weather_current.get("relative_humidity_2m")),
       "wind":_finite(weather_current.get("wind_speed_10m")), "updated":current.get("time"),

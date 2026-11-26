@@ -1,4 +1,4 @@
-import type {AirData, Profile, Recommendation} from './types';
+import type {AirData, Profile, Recommendation, AssistantAnswer} from './types';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 export async function getAir(lat:number, lon:number, city:string):Promise<AirData>{
   const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),10000);
@@ -8,8 +8,8 @@ export async function getAir(lat:number, lon:number, city:string):Promise<AirDat
 export async function findCity(name:string):Promise<{latitude:number;longitude:number;city:string;country:string}>{
   const r=await fetch(`${API}/api/location?name=${encodeURIComponent(name)}`); if(!r.ok) throw Error('City lookup unavailable'); return r.json();
 }
-export async function askAssistant(question:string, air:AirData, profile:Profile){
-  const r=await fetch(`${API}/api/assistant`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,air,profile})}); if(!r.ok) throw Error('Assistant unavailable'); return r.json();
+export async function askAssistant(question:string, air:AirData, profile:Profile):Promise<AssistantAnswer>{
+  const r=await fetch(`${API}/api/assistant`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,air,profile})}); if(!r.ok) throw Error('Assistant unavailable'); return r.json() as Promise<AssistantAnswer>;
 }
 export function localRecommendations(air:AirData,p:Profile):Recommendation[]{
  const severe=air.aqi!==null&&air.aqi>200; const poor=air.aqi!==null&&air.aqi>100; const people=p.children||p.elderly||p.sensitive;
