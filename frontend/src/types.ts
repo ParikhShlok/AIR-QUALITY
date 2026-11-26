@@ -1,0 +1,3 @@
+export type AirData = { source: 'live'|'cached'|'unavailable'; city: string; aqi: number|null; pm25: number|null; pm10: number|null; temperature: number|null; humidity: number|null; wind: number|null; updated: string|null; forecast: {time:string; value:number}[]; note?:string };
+export type Profile = { city:string; household:number; children:boolean; elderly:boolean; sensitive:boolean; commute:string; purifier:boolean; ventilation:string; budget:string };
+export type Recommendation = { title:string; action:string; reason:string; benefit:string; priority:number; category:string };
