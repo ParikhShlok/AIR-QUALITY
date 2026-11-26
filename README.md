@@ -85,12 +85,17 @@ Requirements: Node.js 20+ and Python 3.10+.
 
 Open `http://localhost:5173`. Internet access is required for live location and environmental data. Without the backend, the interface and local checklist/profile still work and measurements remain unavailable.
 
+## Deploy on Netlify
+
+The root `netlify.toml` configures the site to build from `frontend/`, publish `frontend/dist`, and route browser paths back to the React entry point. Connect the GitHub repository to Netlify and use the detected configuration. The Netlify-hosted frontend can render without the API, but live readings require deploying `backend/` separately. Set the Netlify environment variable `VITE_API_URL` to that backend's HTTPS URL. On the backend, set `FRONTEND_ORIGINS` to the exact Netlify site origin (for example, `https://your-site.netlify.app`) so browser API calls pass CORS checks.
+
 ## Configuration
 
 | Variable | Purpose |
 |---|---|
 | `VITE_API_URL` | Backend URL used by the browser (default `http://localhost:8000`) |
 | `OPEN_METEO_TIMEOUT_SECONDS` | Upstream API timeout (default 8 seconds) |
+| `FRONTEND_ORIGINS` | Comma-separated browser origins allowed by FastAPI; include your deployed Netlify origin |
 | `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | Optional backend-only OpenAI-compatible assistant provider; leave key/model blank for rules-only mode |
 
 Never put a provider secret in a `VITE_` variable. No credentials are required for the implemented features.
