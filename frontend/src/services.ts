@@ -1,12 +1,71 @@
 import type {AirData, Profile, Recommendation, AssistantAnswer} from './types';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const AIR_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+const directCache = new Map<string,{savedAt:number;data:AirData}>();
+
+async function getJson(url:string, init:RequestInit = {}) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(url,{...init,signal:controller.signal});
+    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    return await response.json();
+  } finally { window.clearTimeout(timeout); }
+}
+
 export async function getAir(lat:number, lon:number, city:string):Promise<AirData>{
   const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),10000);
-  try { const r=await fetch(`${API}/api/air?latitude=${lat}&longitude=${lon}&city=${encodeURIComponent(city)}`,{signal:ctl.signal}); if(!r.ok) throw Error('Air service unavailable'); return await r.json(); }
+  try {
+    const r=await fetch(`${API}/api/air?latitude=${lat}&longitude=${lon}&city=${encodeURIComponent(city)}`,{signal:ctl.signal});
+    if(!r.ok) throw Error('Air service unavailable');
+    return await r.json();
+  } catch { return await getOpenMeteoAir(lat,lon,city); }
   finally { clearTimeout(timer); }
 }
 export async function findCity(name:string):Promise<{latitude:number;longitude:number;city:string;country:string}>{
-  const r=await fetch(`${API}/api/location?name=${encodeURIComponent(name)}`); if(!r.ok) throw Error('City lookup unavailable'); return r.json();
+  try {
+    const r=await fetch(`${API}/api/location?name=${encodeURIComponent(name)}`);
+    if(!r.ok) throw Error('Location service unavailable');
+    return await r.json();
+  } catch {
+    const result=await getJson(`${GEOCODE_URL}?${new URLSearchParams({name:name.trim(),count:'1',language:'en',format:'json'})}`);
+    const item=result.results?.[0];
+    if(!item) throw Error('City was not found');
+    return {latitude:item.latitude,longitude:item.longitude,city:item.name,country:item.country||''};
+  }
+}
+
+async function getOpenMeteoAir(latitude:number,longitude:number,city:string):Promise<AirData>{
+  const key=`${latitude.toFixed(3)},${longitude.toFixed(3)}`;
+  const cached=directCache.get(key);
+  if(cached&&Date.now()-cached.savedAt<600000) return {...cached.data,source:'cached',city,note:'Cached Open-Meteo model data; AQI uses the US AQI system.'};
+  const params=new URLSearchParams({latitude:String(latitude),longitude:String(longitude),current:'pm2_5,pm10,us_aqi',hourly:'us_aqi',forecast_days:'2',timezone:'auto'});
+  const weatherParams=new URLSearchParams({latitude:String(latitude),longitude:String(longitude),current:'temperature_2m,relative_humidity_2m,wind_speed_10m',timezone:'auto'});
+  const [air,weather]=await Promise.all([getJson(`${AIR_URL}?${params}`),getJson(`${WEATHER_URL}?${weatherParams}`)]);
+  const current=air.current||{}, weatherNow=weather.current||{}, times=air.hourly?.time||[], aqiValues=air.hourly?.us_aqi||[];
+  let aqi=validAqi(current.us_aqi);
+  if(aqi===null){const index=times.indexOf(current.time);aqi=validAqi(aqiValues[index<0?0:index]);}
+  const forecast=times.flatMap((time:string,index:number)=>{
+    const value=validAqi(aqiValues[index]);
+    return time>String(current.time||'')&&value!==null?[{time:time.slice(11,16),value}]:[];
+  }).slice(0,24);
+  const data:AirData={source:'live',city,aqi,pm25:nonnegative(current.pm2_5),pm10:nonnegative(current.pm10),
+    temperature:finite(weatherNow.temperature_2m),humidity:finite(weatherNow.relative_humidity_2m),wind:finite(weatherNow.wind_speed_10m),
+    updated:current.time||null,forecast,note:'Open-Meteo model estimates; AQI uses the US AQI system.'};
+  directCache.set(key,{savedAt:Date.now(),data});
+  return data;
+}
+
+function finite(value:unknown):number|null{
+  return typeof value==='number'&&Number.isFinite(value)?value:null;
+}
+function nonnegative(value:unknown):number|null{
+  const number=finite(value);return number!==null&&number>=0?number:null;
+}
+function validAqi(value:unknown):number|null{
+  const number=finite(value);return number!==null&&number>=0&&number<=500?number:null;
 }
 export async function askAssistant(question:string, air:AirData, profile:Profile):Promise<AssistantAnswer>{
   const r=await fetch(`${API}/api/assistant`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,air,profile})}); if(!r.ok) throw Error('Assistant unavailable'); return r.json() as Promise<AssistantAnswer>;

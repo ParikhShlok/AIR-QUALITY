@@ -33,7 +33,7 @@ flowchart LR
   RULES --> UI
 ```
 
-The frontend is a Vite application in `frontend/`. FastAPI routes, data retrieval, validation and decision rules are separated under `backend/app/`. Upstream requests have timeouts and a ten-minute in-memory cache. On request failure the API returns an error; the UI hides measurements rather than showing fabricated or stale sample readings.
+The frontend is a Vite application in `frontend/`. FastAPI routes, data retrieval, validation and decision rules are separated under `backend/app/`. Upstream requests have timeouts and a ten-minute in-memory cache. Static hosting can run without a separate backend: the browser falls back to the public Open-Meteo geocoding, air-quality, and weather APIs, with a ten-minute cache and explicit model-data attribution. If both backend and direct requests fail, measurements remain unavailable rather than showing sample readings.
 
 ## AI architecture and decisions
 
@@ -102,7 +102,7 @@ Never put a provider secret in a `VITE_` variable. No credentials are required f
 
 ## Tests
 
-Run backend tests from `backend/` and frontend domain tests from `frontend/`:
+Run backend API/service tests and frontend domain, component, service-fallback, and accessibility tests:
 
 ```powershell
 cd backend
